@@ -14,6 +14,7 @@ source environment_variables.sh
 source_dir="$1"
 previous_job="$2"
 
+write_log  "${SLURM_JOB_ID}: INFO  Begining clean up with ${source_dir} and ${previous_job}."
 if [ -d "${source_dir}" ]; then
   exitcode_check="Exitcode 0:0" #Use this to grep the search file.
     
@@ -46,10 +47,6 @@ if [ -d "${source_dir}" ]; then
   fi
 
 
-  #fixing permissions
-  write_log "${SLURM_JOB_ID}: Fixing permissions for ${source_dir}."
-  find "${source_dir}" \( -type f -exec chmod g+rw {} \; \) ,  \( -type d -exec chmod g+rwxs {}
-\;  \)
   
   write_log  "${SLURM_JOB_ID}: Starting Cleanup in Directory ${source_dir} ${project_name}."
   write_log  "${SLURM_JOB_ID}: Part of ${previous_job}; moving ${source_dir} to ${destination}."
@@ -58,7 +55,16 @@ if [ -d "${source_dir}" ]; then
   rm ${destination}/${cf_sentinel_file}
   write_log  "${SLURM_JOB_ID}: Copy Sentinel removed"
 
+  #fixing permissions
+  write_log "${SLURM_JOB_ID}: Fixing permissions for ${destination}."
+  find "${destination}" \( -type f -exec chmod g+rw {} \; \) ,  \( -type d -exec chmod g+rwxs {} \;  \)
+
+  #fixing symbolic links by deleting them all; relative ones would be OK, but broken ones cause Globus to fail
+  write_log "${SLURM_JOB_ID}: Deleting symbolic links at ${destination}."
+  find "${destination}" -type l -delete
+  
   #Only remove this after the copy has completed so there's no window for it to be sent for analysis
+  write_log "${SLURM_JOB_ID}: Removing sentinels and sentinels directory ${destination}."
   rm ${destination}/${slurm_sentinel_file}
 
   #remove sentinels directory so that Globus knows to download

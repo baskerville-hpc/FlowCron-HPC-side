@@ -119,6 +119,85 @@ function findOnlyOneFileMatching {
     return 1
 }
 
+
+#This checks that the file is a valid bash script
+function check_for_valid_bash_shebang {
+  file_to_check=$1
+  grep_test=$(head -n1 "${file_to_check}" | grep -i '^\#!/bin/bash')
+  if [ ! -z "${grep_test}" ]; then
+    return 0
+  fi
+  return 1
+}
+
+#Attempts to detect any or no output or error slurm directives and correct them for use in hte script.
+#This allows you to recycle UoW's that have been passed through previously.
+
+function correct_error_and_output {
+    file_to_check=$1
+    UoW_slurm_local=$2
+    write_log "INFO: file to check ${file_to_check} UoW_slurm_local is ${UoW_slurm_local}"
+    #Check for short forms and substitute first
+    grep_error=$(grep -E '#SBATCH\s+-e[[:blank:]=\"]+' "${file_to_check}")
+    grep_error_long_form=$(grep -E '#SBATCH\s+--error[[:blank:]=\"]+' "${file_to_check}")
+    if [ ! -z "${grep_error}" ]; then
+        # if found, use sed to substitute entire line
+        sed -i'' -e 's#\#SBATCH\s-e.*#\#SBATCH --error="'"${UoW_slurm_local}"'/slurm-%j.err"#' "${file_to_check}"
+    elif [ ! -z "${grep_error_long_form}" ]; then
+        # if found, use sed to substitute entire line
+        sed -i'' -e 's#\#SBATCH\s--error.*#\#SBATCH --error="'"${UoW_slurm_local}"'/slurm-%j.err"#' "${file_to_check}"
+    else
+        #if not found add #SBATCH --error after /bin/bash
+        check_for_valid_bash_shebang "${file_to_check}" || return 1
+        sed -i '/#!\/bin\/bash/a \#SBATCH --error="'"${UoW_slurm_local}"'\/slurm-%j.err"' "${file_to_check}"
+    fi
+
+
+    grep_output=$(grep -E '#SBATCH\s+-o[[:blank:]=\"]+' "${file_to_check}")
+    grep_output_long_form=$(grep -E '#SBATCH\s+--output[[:blank:]=\"]+' "${file_to_check}")
+    if [ ! -z "${grep_output}" ]; then
+        # if found, use sed to substitute entire line
+        sed -i'' -e 's#\#SBATCH\s-o.*#\#SBATCH --output="'"${UoW_slurm_local}"'/slurm-%j.out"#' "${file_to_check}"
+    elif [ ! -z "${grep_output_long_form}" ]; then
+        # if found, use sed to substitute entire line
+        sed -i'' -e 's#\#SBATCH\s--output.*#\#SBATCH --output="'"${UoW_slurm_local}"'/slurm-%j.out"#' "${file_to_check}"
+    else
+        check_for_valid_bash_shebang "${file_to_check}" || return 1
+        #if not found add #SBATCH --error after /bin/bash
+        sed -i '/#!\/bin\/bash/a \#SBATCH --output="'"${UoW_slurm_local}"'\/slurm-%j.out"' "${file_to_check}"
+    fi
+
+    return 0
+}
+
+#Use this function to check for either submission_script.sh or a valid and singular script, as defined by having a shebang and a line '^#SBATCH......'
+function find_first_script {
+   path_to_search="$1"
+   submission_script=""
+   write_log "INFO: running find_first_script, looking for a script in $path_to_search"
+   if [ ! -d "${path_to_search}" ]; then
+     write_log "Error: path ${path_to_search} does not exist"  
+     return 1
+   fi
+   
+   if [ -f "${path_to_search}/submission_script.sh" ]; then
+       write_log "INFO; found default submission script ${path_to_search}/submission_script.sh so using that."
+       submission_script="${path_to_search}/submission_script.sh" 
+       return 0
+   fi
+   scripts=(); for i in "$path_to_search"/*; do temp=$(grep -l -E "^#SBATCH" "${i}"); if [ ! -z "${temp}" ]; then if check_for_valid_bash_shebang "$temp"; then scripts+=("${temp}"); fi; fi; done
+   val=${#scripts[@]}
+   if [ $val -ne 1 ]; then
+     write_log "INFO; found either no or multiple possible submission scripts."
+     ${path_to_search}/submission_script.sh
+     return 1 
+   fi
+   
+   submission_script="${scripts[0]}"
+   write_log "INFO; successfully found a possible submission script. ${submission_script}"
+   return 0
+ }
+
 # This is a function to generate some test directories to check the other functions. e.g. findPossibleUnitsOfWork
 function createTestDirs {
   mkdir -p ${1}/"TestingEmpty"

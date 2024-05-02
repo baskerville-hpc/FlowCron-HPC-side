@@ -6,7 +6,7 @@
 ##Needed for cron jobs where the job will be started in the home directory, so gives us an option to move to a new directory.
 
 if [[ $# -gt 0 ]]
-  then cd "${1}"  
+  then cd "${1}"
 fi
 
 source environment_variables.sh
@@ -43,7 +43,7 @@ while read UoW; do
       write_log "Running mv ${UoW} $work_dir"
 
       #A sentinel file should stop findPossibleUnitsOfWork picking it up again and trying to move it, if it's not finished by the
-      #time of the next cron run 
+      #time of the next cron run
       copy_sentinel_files="transfer_to_slurm-${timestamp}"
       write_log "Writing sentinel ${UoW}/sentinels/${copy_sentinel_files} to prevent multiple copies"
       touch "${UoW}/sentinels/${copy_sentinel_files}"
@@ -65,24 +65,41 @@ count=0
 while read UoW_slurm; do
   if [[ -n "${UoW_slurm}" ]]; then #test for an empty value. This is given if findPossible... looks at an empty dir.
     #Customise slurm file
-    path_to_slurm_file="${UoW_slurm}/scripts/submission_script.sh"
-    sed -i "s#SUBST#${UoW_slurm}/slurm#g"  "${path_to_slurm_file}"
+    submission_script=''
+#path_to_slurm_file="${UoW_slurm}/scripts/submission_script.sh"
+#sed -i "s#SUBST#${UoW_slurm}/slurm#g"  "${path_to_slurm_file}"
+    find_first_script "${UoW_slurm}"/scripts
+    path_to_slurm_file=$submission_script
+    if [ $? -ne 0 ]; then
+      write_log "FAILED when trying to find a valid slurm script; bypassing cleanup and moving ${UoW_slurm} directory"
+      mv "${UoW_slurm}" ${failed_area}
+      continue
+    fi
+
+    write_log "INFO: rewriting output and error slurm directives in ${path_to_slurm_file}"
+    correct_error_and_output "${path_to_slurm_file}" "${UoW_slurm}"
+
+    if [ $? -ne 0 ]; then
+      write_log "FAILED when rewriting slurm script; bypassing cleanup and moving ${UoW_slurm} directory"
+      mv "${UoW_slurm}" ${failed_area}
+      continue
+    fi
 
     #Start analysis
     write_log "Starting analysing ${filename}"
-    write_log "${executable_to_run} ${path_to_slurm_file}"
+    write_log "${executable_to_run} ${path_to_slurm_file} ${UoW_slurm}"
 
     job_id=$(${executable_to_run} "${path_to_slurm_file}"  "${UoW_slurm}")
 
     if [ $? -ne 0 ]; then
-      write_log "FAILED when running slurm script; bypassing cleanup and moving ${UoW_slurm} directory"	
-      mv "${UoW_slurm}" ${failed_area}	
+      write_log "FAILED when running slurm script; bypassing cleanup and moving ${UoW_slurm} directory"
+      mv "${UoW_slurm}" ${failed_area}
       continue
     fi
 
     #Create a sentinel to prevent it being analysed multiple times
     touch "${UoW_slurm}/sentinels/SlurmRunning-${job_id}"
-    
+
     #Copy to a destination based on existence of a slurm stats file and it containing "Exitcode 0:0"
     write_log "cron.target sent ${executable_to_run} ${path_to_slurm_file} ${UoW_slurm} with JobID ${job_id} to the queue"
     cleanup_job_id=$(sbatch --dependency afterany:${job_id} --parsable ${cleanup_script} ${UoW_slurm} ${job_id})
@@ -94,3 +111,4 @@ while read UoW_slurm; do
 done <<< $(findPossibleUnitsOfWork "slurm")
 
 write_log "Complete; analysed ${count} files."
+
