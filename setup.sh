@@ -1,6 +1,6 @@
 #!/bin/bash
 
-CRON_HOST="bask-pg-login03"
+CRON_HOST="$(hostname)"
 CRON_MIN=5
 COLOUR_RED='\e[0;31m'
 COLOUR_RESET='\033[0m'
@@ -22,7 +22,7 @@ minutes, which will call the bash script in ${CURRENT_DIR}/CodeToRun/cron.target
 Cron jobs aren't shared between users in Baskerville and will be wiped out in a system upgrade. We will store a backup
 for you as part of this script in "${flow_cron_config_dir}"
 
-This script creates an executable in your home directory, which can be accessed from any host. However the cron job only runs on one host, so you're asked to state which login node you'd like for it to be installed on. The cron job can't run FlowCron directly so it has to run the executable first due to way cron is setup. 
+This script creates an executable in your home directory, which can be accessed from any host. However the cron job only runs on one host, so make a note or look in the config. The cron job can't run FlowCron directly so it has to run the executable first due to way cron is setup. 
 
 When you're asked for a name, please make this unique to your instances of FlowCron.
  
@@ -30,7 +30,7 @@ EOF
 
 
 
-if [ ! -d "${flow_cron_config_dir}" ]; then
+if [ ! -d ${flow_cron_config_dir} ]; then
     mkdir -p "${flow_cron_config_dir}"
 fi
 
@@ -45,17 +45,6 @@ while true ; do
     else
 	echo "Please enter a value for the name of the script."	    
     fi
-done
-
-#Ask which login server to use for Cron job
-echo -e "\nWhich login server would you like to deploy the cron job to;"
-select yn in "${HOST_OPTS[@]}"
-do
-    for i in "${HOST_OPTS[@]}"; do
-	if [ "${yn}" == "${i}" ]; then
-            CRON_HOST="${yn}"; break 2;
-	fi
-    done
 done
 
 #Ask how many minutes should this repeat
@@ -140,7 +129,7 @@ do
      esac
 done
 
-echo -e "${warning}" > "${flow_cron_config_dir}/$(date)_${CRON_SCRIPT_NAME}"
+echo -e "${warning}" > "${flow_cron_config_dir}/$(date +%FT%T)_${CRON_SCRIPT_NAME}"
 
 echo "${new_cron}" | crontab -
 set +o noglob
