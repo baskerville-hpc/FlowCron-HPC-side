@@ -2,7 +2,8 @@
 
 CRON_HOST="bask-pg-login03"
 CRON_MIN=5
-
+COLOUR_RED='\e[0;31m'
+COLOUR_RESET='\033[0m'
 CURRENT_DIR="$(pwd)"
 
 HOST_OPTS=("bask-pg-login03" "bask-pg-login01" "bask-pg-login02" "bask-pg-login04")
@@ -104,9 +105,9 @@ EOF
 )
 
 
-cat <<EOF
+warning=$(cat <<EOF
 We will set up with these options;
-Name of script:                      $CRON_SCRIPT_NAME   $OVERWRITE
+Name of script:                      $CRON_SCRIPT_NAME   ${COLOUR_RED}${OVERWRITE}${COLOUR_RESET}
 Repeat Time:                         $CRON_MIN minutes
 Host for cron file:                  $CRON_HOST
 Add Timestamp to uploaded Directory: $ADD_TIMESTAMP
@@ -118,6 +119,8 @@ to:
 
 ${new_cron}
 EOF
+)
+echo "$warning"
 
 echo "Confirm to continue?"
 select yn in  "${yes_no[@]}"
@@ -137,7 +140,7 @@ do
      esac
 done
 
-echo "${new_cron}"
+echo -e "${warning}" > "${flow_cron_config_dir}/$(date)_${CRON_SCRIPT_NAME}"
 
 echo "${new_cron}" | crontab -
 set +o noglob
@@ -155,10 +158,8 @@ EOF
 
 chmod +x ~/${CRON_SCRIPT_NAME}
 
-set -o noglob
+
+echo "COMPLETE!"
 
 
 
-#backup created cronjob
-
-#echo "ssh ${USER}@${CRON_HOST} -c \"crontab -l > \"./${CRON_BACKUP}\""
