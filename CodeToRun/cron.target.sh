@@ -32,8 +32,12 @@ while read UoW; do
       timestamp=$(date '+%Y%m%d-%H%M%S')
 
       #RFI's Globus script will add the timestamp to the directory so they know what it's called.
-      #work_dir="slurm/${short_filename}-${timestamp}"
-      work_dir="slurm/${short_filename}"
+      #Other users might not so we add this to prevent clobbering.
+      if [[ -v ADD_TIMESTAMP ]]; then
+          work_dir="slurm/${short_filename}-${timestamp}"
+      else
+          work_dir="slurm/${short_filename}"
+      fi
 
       #Create workdir; skip to next if this fails.
       write_log "Creating ${work_dir}"

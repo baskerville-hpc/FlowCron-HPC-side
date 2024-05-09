@@ -147,6 +147,17 @@ EOF
 
 chmod +x ~/${CRON_SCRIPT_NAME}
 
+path_to_environment_variables="./CodeToRun/environment_variables.sh"
+#Add Timestamp option to environment variables
+if [[ -v ADD_TIMESTAMP ]]; then
+    grep_test=$(grep "ADD_TIMESTAMP" "${path_to_environment_variables}")
+    if [ -z "${grep_test}" ]; then
+        echo -e "#Added automatically by setup.sh\nADD_TIMESTAMP=1" >> "${path_to_environment_variables}"
+    fi
+else
+    sed -i'' -E 's/^ADD_TIMESTAMP.*$//g' "${path_to_environment_variables}"
+    sed -i'' -E 's/^\#Added automatically by setup.sh.*$//g' "${path_to_environment_variables}"
+fi
 
 echo "COMPLETE!"
 
