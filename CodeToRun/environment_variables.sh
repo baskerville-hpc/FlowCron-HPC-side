@@ -28,5 +28,3 @@ create_dir ${failed_area}
 create_dir ${success_area}
 create_dir ${cleanup_area}
 
-
-

@@ -1,4 +1,5 @@
-#!/bin/bash
+
+1;115;0c#!/bin/bash
 
 CRON_HOST="$(hostname)"
 CRON_MIN=5

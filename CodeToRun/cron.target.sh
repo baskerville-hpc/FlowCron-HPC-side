@@ -40,11 +40,11 @@ while read UoW; do
       fi
 
       #Create workdir; skip to next if this fails.
-      write_log "Creating ${work_dir}"
-#      mkdir -p ${work_dir} || (write_log "Failed to create dir ${work_dir}" && continue)
+      write_log "Creating slurm"
+      mkdir ./slurm || (write_log "Failed to create dir slurm" && continue)
 
       #Move UoW to the workdir
-      write_log "Running mv ${UoW} $work_dir"
+      write_log "Running mv ${UoW} ${work_dir}"
 
       #A sentinel file should stop findPossibleUnitsOfWork picking it up again and trying to move it, if it's not finished by the
       #time of the next cron run
