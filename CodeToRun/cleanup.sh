@@ -1,12 +1,11 @@
 #!/bin/bash
-#SBATCH --account jgms5830-rfi-automat
-#SBATCH --qos rfi                                                 
-#SBATCH --time 0:5:0   #Five hours might be too long
+#SBATCH --account <put your account here>
+#SBATCH --qos <put your QoS here>                                                 
+#SBATCH --time 0:10:0
 #SBATCH --job-name GlobusUploadFileAnalysis-cleanup
 #SBATCH --output="../Bin/cleanup%j.out"
 
-#NOTE: This file is not meant to be run directly and is just a template for each job and is editted by cron.target.sh
-
+#NOTE: This file is not meant to be run directly
 #Edit account and qos to your own values which can be found from the my_baskerville command or admin.baskerville.ac.uk                                              
 module purge
 source environment_variables.sh
@@ -15,6 +14,7 @@ source_dir="$1"
 previous_job="$2"
 
 write_log  "${SLURM_JOB_ID}: INFO  Begining clean up with ${source_dir} and ${previous_job}."
+pwd
 if [ -d "${source_dir}" ]; then
   exitcode_check="Exitcode 0:0" #Use this to grep the search file.
     
@@ -50,27 +50,62 @@ if [ -d "${source_dir}" ]; then
   
   write_log  "${SLURM_JOB_ID}: Starting Cleanup in Directory ${source_dir} ${project_name}."
   write_log  "${SLURM_JOB_ID}: Part of ${previous_job}; moving ${source_dir} to ${destination}."
+
   mv $source_dir $destination
-  write_log "${SLURM_JOB_ID}: Copy complete, removing Copy Sentinel ${destination}/${sentinels}"
+
+  if [[ $? -eq 0 ]]; then
+     write_log "${SLURM_JOB_ID}: Move complete, removing Copy Sentinel ${destination}/${cf_sentinel_file}"
+  else
+      write_log "${SLURM_JOB_ID}: FATAL ERROR - Move failed for ${destination}/${project_name}"
+      exit 1
+  fi 
+
   rm ${destination}/${cf_sentinel_file}
-  write_log  "${SLURM_JOB_ID}: Copy Sentinel removed"
+  if [[ $? -eq 0 ]]; then
+     write_log  "${SLURM_JOB_ID}: Copy Sentinel removed"
+  else
+      write_log "${SLURM_JOB_ID}: FATAL ERROR - Copy Sentinel not removed ${destination}/${cf_sentinel_file}"
+      exit 1
+  fi 
 
   #fixing permissions
-  write_log "${SLURM_JOB_ID}: Fixing permissions for ${destination}."
-  find "${destination}" \( -type f -exec chmod g+rw {} \; \) ,  \( -type d -exec chmod g+rwxs {} \;  \)
+  write_log "${SLURM_JOB_ID}: Fixing permissions for ${destination}/${project_name} ."
+  target=${destination}/${project_name}
+  find "${target}" \( -type f -exec chmod g+rw {} \; \) ,  \( -type d -exec chmod g+rwxs {} \;  \)
+  if [[ $? -eq 0 ]]; then
+     write_log  "${SLURM_JOB_ID}: Permissions Fixed for ${target}"
+  else
+     write_log "${SLURM_JOB_ID}: FATAL ERROR - Permissions not fixed for directory ${target}; continuing, but transfer may fail."
+  fi 
 
   #fixing symbolic links by deleting them all; relative ones would be OK, but broken ones cause Globus to fail
   write_log "${SLURM_JOB_ID}: Deleting symbolic links at ${destination}."
-  find "${destination}" -type l -delete
+  find "${target}" -type l -delete
+  if [[ $? -eq 0 ]]; then 
+     write_log  "${SLURM_JOB_ID}: Symbolic links deleted for ${target}"
+  else
+     write_log "${SLURM_JOB_ID}: FATAL ERROR - Symbolic links not fixed for directory ${target}; continuing, but globus transfer may fail."
+  fi 
   
   #Only remove this after the copy has completed so there's no window for it to be sent for analysis
+  # Do it in two steps in case we want to re-use the sentinels directory   
   write_log "${SLURM_JOB_ID}: Removing sentinels and sentinels directory ${destination}."
   rm ${destination}/${slurm_sentinel_file}
-
+  if [[ $? -eq 0 ]]; then
+     write_log  "${SLURM_JOB_ID}: Deleted sentinel file  ${destination}/${slurm_sentinel_file}"
+  else
+     write_log "${SLURM_JOB_ID}: FATAL ERROR - Unable to delete sentinel file"
+  fi 
+  
   #remove sentinels directory so that Globus knows to download
   rm -r "${destination}/${project_name}/sentinels"
+  if [[ $? -eq 0 ]]; then 
+     write_log  "${SLURM_JOB_ID}: Deleted sentinels directory ${destination}/${project_name}/sentinels"
+  else
+     write_log "${SLURM_JOB_ID}: FATAL ERROR - Unable to delete sentinels directory ${destination}/${project_name}/sentinels"
+  fi 
+  write_log  "${SLURM_JOB_ID}: Slurm Sentinel removed - Clean up complete."
 
-  write_log  "${SLURM_JOB_ID}: Slurm Sentinel removed"
 else
   write_log  "Error: ${SLURM_JOB_ID}: Unable to find source directory ${source_dir}"
 fi

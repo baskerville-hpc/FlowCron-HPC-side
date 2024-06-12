@@ -1,15 +1,16 @@
-#Moved these files to a separate file to test
+#General FlowCron functions James Allsopp 2024
 
+days_after_we_should_delete_log_files=7
 
 #Writes the argument to a log file
 function write_log {
    echo -e "$(date '+%Y-%m-%d %H:%M:%S')\t ${1}" >> $logging_file
 }
 
-
-#written but not called.
+#Deletes log and slurm files placed in /Bin after a given number of days
 function delete_old_logs {
-   find ${logging_directory} -mtime +7 -execdir rm -rf-- '{}' \;
+    find ${logging_directory} -mtime +${days_after_we_should_delete_log_files} -exec rm  -- '{}'  \;
+    find ${cleanup_area} -mtime +${days_after_we_should_delete_log_files} -exec rm  -- '{}'  \;
 }
 
 #Function used to create directories, checking for existence before and after.
@@ -73,7 +74,7 @@ function findPossibleUnitsOfWorkSentinelCreatedByGlobus {
         write_log "Unit of Work ${i} contains a sentinel file, probably still being copied to the slurm directory"
       fi
     else
-      write_log "Unit of Work ${i} is not a valid unit of work, as the sentinel directory has not been created yet . This will need to be manually deleted"
+      write_log "Unit of Work ${i} is not a valid unit of work, as the sentinels directory has not been created yet . This will need to be manually created"
     fi
   done
 
@@ -93,7 +94,8 @@ function findPossibleUnitsOfWork {
     if IsDirectoryAUnitOfWork "${i}"; then
       doesUnitOfWorkNOTContainASentinelFile "${i}"
       if [ $? -eq 0 ]; then        
-        echo "${i}"
+          write_log "${i} does not contain a sentinel file"
+	  echo "${i}" #This is the return value that makes this function work
       else
         write_log "Unit of Work ${i} still contains a sentinel file"
       fi
@@ -112,10 +114,11 @@ function findOnlyOneFileMatching {
     readarray -d '' file_list < <(find "$1" -name "$2" -print0)
 
     if [ ${#file_list[@]} -eq 1 ]; then
-	echo ${file_list[0]}
+	write_log "Found a single matching slurm file ${file_list[0]}"
+	echo "${file_list[0]}"
 	return 0
     fi
-    echo ""
+    write_log  "Found multiple or no slurm files in $1"
     return 1
 }
 

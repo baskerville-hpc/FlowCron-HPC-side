@@ -1,6 +1,12 @@
 #!/bin/bash
 
-#This is a command run by a crontab that wraps the actual function you actually want to run.
+#This is a command run by a crontab that wraps the actual functions you want to run. If you want to understand what's going on, start here. look to the bottom of the loops for the command that's controlling the interation. There's three stages.
+# I. Move from UploadedFiles to CodeToRun/Slurm (first loop)
+# II. Start the job (second )
+# III. Call the clean up slurm job.
+# IV. Delete old logs
+
+# James Allsopp 2024
 
 
 ##Needed for cron jobs where the job will be started in the home directory, so gives us an option to move to a new directory.
@@ -14,7 +20,7 @@ source environment_variables.sh
 executable_to_run="sbatch --parsable "
 run_script="run_job.sh"
 cleanup_script="cleanup.sh"
-
+slurm_directory="./slurm"
 count=0
 
 write_log "Starting cron.target.sh in directory $(pwd)"
@@ -23,7 +29,7 @@ write_log "Starting cron.target.sh in directory $(pwd)"
 #Expecting copy operations for RELION to take longer than the period of the cron job, so adding a sentinel whilst
 #copying to the slurm directory for analysis. This should really me broken
 
-echo "Search for directories to analyse"
+write_log "Search for directories to analyse"
 while read UoW; do
     if [[ -n "${UoW}" ]]; then #test for an empty value. This is given if findPossible... looks at an empty dir.
       #define variables
@@ -34,15 +40,20 @@ while read UoW; do
       #RFI's Globus script will add the timestamp to the directory so they know what it's called.
       #Other users might not so we add this to prevent clobbering.
       if [[ -v ADD_TIMESTAMP ]]; then
-          work_dir="slurm/${short_filename}-${timestamp}"
+          work_dir="${slurm_directory}/${short_filename}-${timestamp}"
       else
-          work_dir="slurm/${short_filename}"
+          work_dir="${slurm_directory}/${short_filename}"
       fi
 
       #Create workdir; skip to next if this fails.
-      write_log "Creating slurm"
-      mkdir ./slurm || (write_log "Failed to create dir slurm" && continue)
 
+      if [ -d ${slurm_directory} ]; then
+	  write_log "${slurm_directory} exists."
+      else
+          write_log "Creating directory ${slurm_directory}"
+          mkdir ${slurm_directory} || (write_log "Failed to create dir slurm" && continue)
+      fi
+      
       #Move UoW to the workdir
       write_log "Running mv ${UoW} ${work_dir}"
 
@@ -52,8 +63,21 @@ while read UoW; do
       write_log "Writing sentinel ${UoW}/sentinels/${copy_sentinel_files} to prevent multiple copies"
       touch "${UoW}/sentinels/${copy_sentinel_files}"
       mv "$UoW" "$work_dir"
+      if [[ $? -eq 0 ]]; then
+	  write_log "mv $UoW $work_dir complete. Removing sentinel ${work_dir}/sentinels/${copy_sentinel_files}."
+      else
+          write_log "FATAL ERROR - Move failed for mv ${UoW} ${work_dir}"
+          continue
+      fi
+
       write_log "mv $UoW $work_dir complete. Removing sentinel ${work_dir}/sentinels/${copy_sentinel_files}."
       rm "${work_dir}/sentinels/${copy_sentinel_files}"
+      if [[ $? -eq 0 ]]; then
+          write_log "Successfully removed sentinel."
+      else
+          write_log "FATAL ERROR - Unable to delete copy sentinels using rm ${work_dir}/sentinels/${copy_sentinel_files}"
+          continue
+      fi
 
       #Increment count of files ran
       count=$((count+1))
@@ -70,8 +94,7 @@ while read UoW_slurm; do
   if [[ -n "${UoW_slurm}" ]]; then #test for an empty value. This is given if findPossible... looks at an empty dir.
     #Customise slurm file
     submission_script=''
-#path_to_slurm_file="${UoW_slurm}/scripts/submission_script.sh"
-#sed -i "s#SUBST#${UoW_slurm}/slurm#g"  "${path_to_slurm_file}"
+
     find_first_script "${UoW_slurm}"/scripts
     path_to_slurm_file=$submission_script
     if [ $? -ne 0 ]; then
@@ -89,8 +112,16 @@ while read UoW_slurm; do
       continue
     fi
 
+    #Create a sentinel to prevent it being analysed multiple times
+    touch "${UoW_slurm}/sentinels/SlurmRunning-${job_id}"
+
+    if [ $? -ne 0 ]; then
+      write_log "FAILED to create a sentinel to prevent work being analysed multipled times"
+      mv "${UoW_slurm}" ${failed_area}
+      continue
+    fi
+
     #Start analysis
-    write_log "Starting analysing ${filename}"
     write_log "${executable_to_run} ${path_to_slurm_file} ${UoW_slurm}"
 
     job_id=$(${executable_to_run} "${path_to_slurm_file}"  "${UoW_slurm}")
@@ -100,9 +131,6 @@ while read UoW_slurm; do
       mv "${UoW_slurm}" ${failed_area}
       continue
     fi
-
-    #Create a sentinel to prevent it being analysed multiple times
-    touch "${UoW_slurm}/sentinels/SlurmRunning-${job_id}"
 
     #Copy to a destination based on existence of a slurm stats file and it containing "Exitcode 0:0"
     write_log "cron.target sent ${executable_to_run} ${path_to_slurm_file} ${UoW_slurm} with JobID ${job_id} to the queue"
@@ -116,3 +144,8 @@ done <<< $(findPossibleUnitsOfWork "slurm")
 
 write_log "Complete; analysed ${count} files."
 
+#deleting old log files
+write_log "Deleting old files."
+delete_old_logs
+
+write_log "Complete; deleted old log files"

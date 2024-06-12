@@ -1,3 +1,4 @@
+#Sets up environment variables; James Allsopp 2024
 source "bash_functions.sh"
 
 #Variables to be filled in by setup script
@@ -27,4 +28,7 @@ create_dir ${holding_area}
 create_dir ${failed_area}
 create_dir ${success_area}
 create_dir ${cleanup_area}
+
+
+
 
