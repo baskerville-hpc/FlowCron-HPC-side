@@ -1,70 +1,40 @@
-# Server-side end
+# FlowCron - Server-Side
+
+This code is designed to receive a set of files, in a given arrangement, and analyse them on a HPC system, before making them available for download. It is designed to work with either Globus Flows or rsync.
 
 ## Scheduling this to run
 
-First, move CodeToRun directory to a place on either Baskerville or BlueBear in your project directory. Set up a cronjob using **crontab -e** to run the file **cron_target.sh**. Help setting up a cronjob can be found [here](https://www.digitalocean.com/community/tutorials/how-to-use-cron-to-automate-tasks-ubuntu-1804). You will need to add one line, which will look like this
+First, clone this repository to Baskerville in your project directory, then run the setup. The only requirement for other HPC systems is to have slurm and cron available. You're chosen config will be stored in **~/.config/flowcron**, which can be changed in the setup.sh if you have more than one FlowCron instance. In setup.sh, you'll be asked to name the cron job, how often the cron job should run, and whether to add a timestamp to uploaded Units of Work to prevent similarly named Units of Work merging.
 
-* * * * * <path to cron_target.sh>/cron_target.sh
-or
-*/5 * * * * <path to cron_target.sh>/cron_target.sh
-for every five minutes
+On a HPC system where there are multiple login nodes the cron file will be installed to the login node the setup script is run from.
 
-On Baskerville you might find you need to create an executable file in your home directory which is called from your home drectory, which you then use to call cron_target.sh. This is due the restricted PATH a cron may have access to.
+Each time this runs it will create, if necessary, five new directories alongside **CodeToRun** called;
 
-Each time this runs it will create, if necessary, five new directories alongside CodeToRun called;
++ **AnalysedFiles** - Where successfully analysed files are placed
++ **Bin** - where cleanup slurm files are placed. This should be periodically emptied
++ **FailedJobs** - Where jobs that did not successfully complete are placed
++ **Logs** - Where Output from the scripts is put.
++ **UploadedFiles** - Where files to be analysed should be put
 
-+ AnalysedFiles - Where successfully analysed files are placed
-+ Bin - where cleanup slurm files are placed. This should be periodically emptied
-+ FailedJobs - Where jobs that did not successfully complete are placed
-+ Logs - Where Output from the scripts is put.
-+ UploadedFiles - Where files to be analysed should be put
+Remember to change the Account and QoS in cleanup.sh
 
-UploadedFiles is where your flow should deposit uploaded files, so you'll need to specify this in the toml file used by run_flow.py.
+Should you require it, these can be changed in environment_variables.sh. UploadedFiles is where your flow, or other method, should deposit uploaded files. The format of the upload is called a Unit of Work and has the form;
 
-cron_target.sh will then go through the UploadedFiles directory, and transfer each file to it's own temporary directory, should that file's status change be less than x minutes old. x is controlled by the **time_since_last_run** variable set in the environment_variables.sh file.
+<name of Unit of Work (UoW)> 
 
-## Editing run_job.sh and cleanup.sh
+|----> **data** (contains all of the data for the project)
 
-It's important to note that the run_job.sh file is never run directly, a copy is created in a temporary directory, with correct values for the path of the error, output and stats files, and this is what is run. A directory inside CodeToRun is created of the form **slurm/<input_file_name>-<datetime>/** so that the results of each job are transferred with the analysis and you can see exactly what command was run.
+|----> **scripts** (contains **one** slurm file. Our code will search for a single bash file containing a bash shebang and #SBATCH directive. Finding less or more than this will result in an error. Remember to set the account and QoS values correctly
 
-However, you will need to edit run_job.sh to include your own values. Most of this will be familiar to slurm users, but here's a checklist
-+ Change the account to your account (line 2) 
-+ Change the qos to your qos (line 3)
-+ Change the job-name (line 5)
-+ Change the modules, there's a section for BlueBear (Internal UoB HPC system, lines 18 & 19) and one for Baskerville (Lines 21-23)
-+ Change the command to run on Line 35.
+|----> **sentinels**, manually created by the user once transfer is complete. Must be empty.
 
-The first two steps will have to be applied to cleanup.sh too.
-
-It may be preferable to move all you commands out to a separate file run from run_job.sh, but you'll need to add a line in cron_target.sh, after line 30, copying your new into ${work_dir}, or take the path differences into account.
-
-## Post-job completion
-
-Each input files's temporary directory is then either placed in AnalysedFiles, if successful, or in FailedJobs, if not successful. The slurm job that does this, *cleanup.sh* runs after the first slurm job has returned, regardless of the outcome of the main slurm file. We use a SUCCESS or FAILED sentinel file (with no contents), and assume that the job has failed unless we're confident of success of both the code and the slurm job.
-
-As an example, the slurm_script.sh loads the modules needed for Python and runs a file called **LocateRestrictionSites.sh**
-
-##Logging
-
-Finally, a directory **Logs** contains a daily log of everything that's happened, containing the job_id of the slurm job. This will also need to be periodically pruned. You could use Globus to periodically move this to a local drive.
+Once the Unit of Work is uploaded, the user must add a directory called **sentinels** to the Unit of Work to signal a complete transfer. Every time cron_target.sh is run, it will then go through the UploadedFiles directory, and if the sentinels condition is met, transfer each Unit of Work to it's own temporary directory, in **CodetoRun/slurm** where the found slurm script from the scripts directory will be run. The sentinels directory is then used to guarantee completion when moving Units of Work between the UploadedFiles, CodeToRun/slurm and either FailedJobs or AnalysedFiles directories and whilst running the slurm job. Clean up after completion of the slurm job is handled by a slurm dependency job defined in cleanup.sh. Moving the Unit of Work to either AnalysedFiles or Failedjobs is determined by the existence of "ExitCode 0:0" in a file whose name is of the form \*<job_id>.stats. 
 
 ## Testing
 
-These file are for testing your system and can be safely removed, once you're satisfied everything works.
+Edit **example_unit_of_work/scripts/edit_this_slurm_script.sh** to contain the correct QoS, account and job-name, then copy **example_unit_of_work** to **UploadedFiles** after deployment and run **mkdir UploadedFiles/example_unit_of_work/sentinels**. This should then appear in **AnalysedFiles**. You can check the **Logs** and **Bin** directories to check that everything went to plan.
 
-+ test.py success.txt and fail.txt
-+ LocateRestrictionSites.py
+## Logging
 
-For the first test:
-+ Comment line 35 and uncomment line 36 of run_job.sh (python ../../test.py $input_file)
-+ Run cron.target.sh manually to create all of the directory structure.
-+ Copy success.txt and fail.txt into the UploadedFiles directory.
-+ Setup a cron job as described in the first part of the this document, or just run cron.target.sh again.
+Finally, a directory **Logs** contains a daily log of everything that's happened, containing the job_id of the slurm job.  A **Bin** directory stores the output from the cleanup script. You could use Globus to periodically move this to a local drive or build a Grafana solution based on this.
 
-If successful, a success.txt-<datetime> directory should appear in AnalysedFiles and a fail.txt-<datetime> directory if not. The python script test.py just looks for the existence of the word fail on the first line and fails if found.
-
-## TODO
-
-+ Move logs to an S3 bucket for grafana.
-+ Make LocationRestrictionSites receive fasta files and output to a file for download.
-+ Include a hook in clean_up to run a flow to return the products.
