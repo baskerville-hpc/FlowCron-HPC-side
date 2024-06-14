@@ -115,7 +115,7 @@ while read UoW_slurm; do
     fi
 
     #Create a sentinel to prevent it being analysed multiple times
-    touch "${UoW_slurm}/sentinels/SlurmRunning-${job_id}"
+    touch "${UoW_slurm}/sentinels/SlurmRunning"
 
     if [ $? -ne 0 ]; then
       write_log "FAILED to create a sentinel to prevent work being analysed multipled times"
