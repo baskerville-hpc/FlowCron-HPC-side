@@ -1,8 +1,8 @@
 #!/bin/bash
-#SBATCH --account edmondac-rsg
-#SBATCH --qos arc
+#SBATCH --account <put account here>
+#SBATCH --qos <put qos here>
 #SBATCH --time 5:0:0   #Five hours might be too long
-#SBATCH --job-name test_job #<give this a name for this system, so it shows up clearly in squeue>
+#SBATCH --job-name <give this a name for this system, so it shows up clearly in squeue>
 #SBATCH --error="SUBST-%j.err"
 #SBATCH --output="SUBST-%j.out"
 
