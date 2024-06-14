@@ -25,7 +25,7 @@ if [ -d "${source_dir}" ]; then
   #Create a copy file sentinel
 
   cf_sentinel_file="${project_name}/sentinels/COPY-FOR-GLOBUS-DOWNLOAD-${previous_job}"
-  slurm_sentinel_file="${project_name}/sentinels/SlurmRunning-${previous_job}"
+  slurm_sentinel_file="${project_name}/sentinels/SlurmRunning"
   touch "slurm/${cf_sentinel_file}"
 
   #file to search for with success state.
