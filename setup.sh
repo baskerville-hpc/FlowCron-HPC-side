@@ -1,5 +1,4 @@
-
-1;115;0c#!/bin/bash
+#!/bin/bash
 
 CRON_HOST="$(hostname)"
 CRON_MIN=5
@@ -7,7 +6,6 @@ COLOUR_RED='\e[0;31m'
 COLOUR_RESET='\033[0m'
 CURRENT_DIR="$(pwd)"
 
-HOST_OPTS=("bask-pg-login03" "bask-pg-login01" "bask-pg-login02" "bask-pg-login04")
 TIME_OPTS=("1" "2" "5" "10" "15" "30")
 
 flow_cron_config_dir="~/.config/flowcron"

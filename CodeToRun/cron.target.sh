@@ -9,7 +9,7 @@
 # James Allsopp 2024
 
 
-##Needed for cron jobs where the job will be started in the home directory, so gives us an option to move to a new directory.
+# Command line argument needed for cron jobs where the job will be started in the home directory, so gives us an option to move to a new directory.
 
 if [[ $# -gt 0 ]]
   then cd "${1}"
@@ -26,15 +26,15 @@ count=0
 write_log "Starting cron.target.sh in directory $(pwd)"
 
 #Look to the bottom of the loop for defn of UoW
-#Expecting copy operations for RELION to take longer than the period of the cron job, so adding a sentinel whilst
-#copying to the slurm directory for analysis. This should really me broken
+#Expecting copy operations for RELION to take longer than the period of the cron job, so adding a sentinel whilst copying to the slurm directory for analysis.
 
+# LOOP 1 -> Move Unit Of Work from UploadedFiles to CodeToRun/slurm/
 write_log "Search for directories to analyse"
 while read UoW; do
     if [[ -n "${UoW}" ]]; then #test for an empty value. This is given if findPossible... looks at an empty dir.
       #define variables
       short_filename=${UoW##*/}
-      #slurm_filename="${short_filename}_slurm.sh"
+      
       timestamp=$(date '+%Y%m%d-%H%M%S')
 
       #RFI's Globus script will add the timestamp to the directory so they know what it's called.
@@ -90,6 +90,8 @@ write_log "Complete; moved ${count} Units of work to slurm/."
 
 #Reusing findPossibleUnitsOfWork but targeting the slurm/ directory.
 count=0
+
+# LOOP 2 - Start the HPC job and setup cleanup.
 while read UoW_slurm; do
   if [[ -n "${UoW_slurm}" ]]; then #test for an empty value. This is given if findPossible... looks at an empty dir.
     #Customise slurm file
