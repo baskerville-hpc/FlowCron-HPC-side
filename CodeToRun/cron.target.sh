@@ -133,10 +133,15 @@ while read UoW_slurm; do
       mv "${UoW_slurm}" ${failed_area}
       continue
     fi
-
+    
     #Copy to a destination based on existence of a slurm stats file and it containing "Exitcode 0:0"
     write_log "cron.target sent ${executable_to_run} ${path_to_slurm_file} ${UoW_slurm} with JobID ${job_id} to the queue"
     cleanup_job_id=$(sbatch --dependency afterany:${job_id} --parsable ${cleanup_script} ${UoW_slurm} ${job_id})
+    
+    if [ $? -ne 0 ]; then
+      write_log "FAILED when running slurm clean up script, will need to manually clean up. Check that you've set QoS and Account in cleanup.sh"
+      continue
+    fi
     write_log "clean_up created with ${cleanup_job_id} to the queue"
 
     #Increment count of files ran

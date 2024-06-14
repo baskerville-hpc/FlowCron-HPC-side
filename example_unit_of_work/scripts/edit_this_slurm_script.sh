@@ -1,8 +1,8 @@
 #!/bin/bash
-#SBATCH --account <your account here>
-#SBATCH --qos <your qos here>
+#SBATCH --account edmondac-rsg
+#SBATCH --qos arc
 #SBATCH --time 5:0:0   #Five hours might be too long
-#SBATCH --job-name <give this a name for this system, so it shows up clearly in squeue>
+#SBATCH --job-name test_job #<give this a name for this system, so it shows up clearly in squeue>
 #SBATCH --error="SUBST-%j.err"
 #SBATCH --output="SUBST-%j.out"
 
@@ -38,6 +38,6 @@ cd "${working_directory}"
 
 #Your code between here--------------------------------
 current_script=$(basename "$0")
-echo "${current_script} has run"> "submission_script.output"
+echo "${current_script} has run"> "data/submission_script.output"
 
 # And here----------------------------------------------------
