@@ -116,6 +116,8 @@ while read UoW_slurm; do
 
     write_log "Converting the slurm script ${path_to_slurm_file} to UNIX \n format, just in case."
     dos2unix ${path_to_slurm_file}
+    find ${UoW_slurm}/scripts -type f -iname '*.sh' -exec dos2unix {} \;
+
     if [ $? -ne 0 ]; then
       write_log "dos2unix file conversion failed for file ${path_to_slurm_file}"
       continue
