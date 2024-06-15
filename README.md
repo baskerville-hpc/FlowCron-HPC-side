@@ -38,3 +38,8 @@ Edit **example_unit_of_work/scripts/edit_this_slurm_script.sh** to contain the c
 
 Finally, a directory **Logs** contains a daily log of everything that's happened, containing the job_id of the slurm job.  A **Bin** directory stores the output from the cleanup script. You could use Globus to periodically move this to a local drive or build a Grafana solution based on this.
 
+# Possible reasons this might not work
+
++ Not having permissions to use cron
++ Not changing account qos and job-name in the cleanup and slurm scripts.
++ Not converting a script outside of scripts to bash line endings. We try to convert all .sh and slurm scripts in the scripts directory.
