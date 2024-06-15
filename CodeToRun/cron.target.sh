@@ -114,6 +114,13 @@ while read UoW_slurm; do
       continue
     fi
 
+    write_log "Converting the slurm script ${path_to_slurm_file} to UNIX \n format, just in case."
+    dos2unix ${path_to_slurm_file}
+    if [ $? -ne 0 ]; then
+      write_log "dos2unix file conversion failed for file ${path_to_slurm_file}"
+      continue
+    fi
+    
     #Create a sentinel to prevent it being analysed multiple times
     touch "${UoW_slurm}/sentinels/SlurmRunning"
 
