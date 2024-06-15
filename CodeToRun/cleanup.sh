@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --account <put your account here>
-#SBATCH --qos <put your QoS here>                                                 
+#SBATCH --qos <put your QoS here>
 #SBATCH --time 0:10:0
 #SBATCH --job-name GlobusUploadFileAnalysis-cleanup
 #SBATCH --output="../Bin/cleanup%j.out"
@@ -45,8 +45,6 @@ if [ -d "${source_dir}" ]; then
 	write_log  "${SLURM_JOB_ID}:  did not find exit code."
       fi
   fi
-
-
   
   write_log  "${SLURM_JOB_ID}: Starting Cleanup in Directory ${source_dir} ${project_name}."
   write_log  "${SLURM_JOB_ID}: Part of ${previous_job}; moving ${source_dir} to ${destination}."
@@ -89,12 +87,12 @@ if [ -d "${source_dir}" ]; then
   
   #Only remove this after the copy has completed so there's no window for it to be sent for analysis
   # Do it in two steps in case we want to re-use the sentinels directory   
-  write_log "${SLURM_JOB_ID}: Removing sentinels and sentinels directory ${destination}."
+  write_log "${SLURM_JOB_ID}: Removing slurm sentinel ${destination}/${slurm_sentinel_file}."
   rm ${destination}/${slurm_sentinel_file}
   if [[ $? -eq 0 ]]; then
      write_log  "${SLURM_JOB_ID}: Deleted sentinel file  ${destination}/${slurm_sentinel_file}"
   else
-     write_log "${SLURM_JOB_ID}: FATAL ERROR - Unable to delete sentinel file"
+     write_log "${SLURM_JOB_ID}: FATAL ERROR - Unable to delete sentinel file rm ${destination}/${slurm_sentinel_file}"
   fi 
   
   #remove sentinels directory so that Globus knows to download

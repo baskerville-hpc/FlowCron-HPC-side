@@ -122,6 +122,7 @@ while read UoW_slurm; do
     fi
     
     #Create a sentinel to prevent it being analysed multiple times
+    write_log "Creating SlurmRunning sentinel ${UoW_slurm}/sentinels/SlurmRunning"
     touch "${UoW_slurm}/sentinels/SlurmRunning"
 
     if [ $? -ne 0 ]; then
