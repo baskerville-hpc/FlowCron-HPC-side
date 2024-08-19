@@ -1,5 +1,6 @@
 #!/bin/bash
 
+#This is a script to setup the cronjob automatically - JA 17th April
 CRON_HOST="$(hostname)"
 CRON_MIN=5
 COLOUR_RED='\e[0;31m'
@@ -9,7 +10,25 @@ CURRENT_DIR="$(pwd)"
 TIME_OPTS=("1" "2" "5" "10" "15" "30")
 
 flow_cron_config_dir="~/.config/flowcron"
-#This is a script to setup the cronjob automatically - JA 17th April
+
+which my_baskerville 2>&1 /dev/null
+usingBaskerville=$?
+
+#given an array and a value, is the value in the array, returns 0 if found and 1 if not.
+function isValueInArray {
+  arr=$1
+  value=$2
+  for test in "${arr[@]}"; do
+    if [ ! -z "${value}" ] && [ $value == $test ]; then
+      echo "0"
+      return
+    fi
+  done
+  echo "1"
+}
+
+
+
 
 
 cat << EOF
@@ -44,6 +63,45 @@ while true ; do
     else
 	echo "Please enter a value for the name of the script."	    
     fi
+done
+
+#Get an account name from the user.
+while true ; do
+    read -p "What Slurm QoS would you like this to run under? You can list your available QoS using the command 'my_baskerville'." CRON_QOS_NAME
+    if [ ! -z $CRON_QOS_NAME ]; then
+        if [ $usingBaskerville ]; then
+            CHECK=$(my_baskerville | grep "QoS.*:")
+            CHECK=${CHECK##*:}
+            CHECK_ARRAY=($(echo $CHECK | sed 's/\s*,\s*/ /g'))
+
+            if [ $(isValueInArray CHECK_ARRAY $CRON_QOS_NAME) -eq 0 ]; then
+              break
+            fi
+        else
+            break
+        fi
+    fi
+	echo "Please enter a QoS for the script."	    
+done
+
+
+#Get an account name from the user.
+while true ; do
+    read -p "What Slurm account would you like this to run under? You can list your accounts using the command 'my_baskerville'." CRON_ACCOUNT_NAME
+    if [ ! -z $CRON_ACCOUNT_NAME ]; then
+        if [ $usingBaskerville ]; then
+            CHECK=$(my_baskerville | grep "$CRON_QOS_NAME.*:")
+            CHECK=${CHECK##*:}
+            CHECK_ARRAY=($(echo $CHECK | sed 's/\s*,\s*/ /g'))
+
+            if [ $(isValueInArray CHECK_ARRAY $CRON_ACCOUNT_NAME) -eq 0 ]; then
+              break
+            fi
+        else
+          break
+        fi
+    fi
+	echo "Please enter an account name for the script."	    
 done
 
 #Ask how many minutes should this repeat
@@ -96,6 +154,8 @@ EOF
 warning=$(cat <<EOF
 We will set up with these options;
 Name of script:                      $CRON_SCRIPT_NAME   ${COLOUR_RED}${OVERWRITE}${COLOUR_RESET}
+QoS:                                 $CRON_QOS_NAME
+Account:                             $CRON_ACCOUNT_NAME
 Repeat Time:                         $CRON_MIN minutes
 Host for cron file:                  $CRON_HOST
 Add Timestamp to uploaded Directory: $ADD_TIMESTAMP
@@ -158,6 +218,9 @@ else
     sed -i'' -E 's/^\#Added automatically by setup.sh.*$//g' "${path_to_environment_variables}"
 fi
 
+
+sed -i 's/#SBATCH --account.*/#SBATCH --account ${CRON_ACCOUNT_NAME}/g' ${CURRENT_DIR}/CodeToRun/cleanup.sh
+sed -i 's/#SBATCH --qos.*/#SBATCH --qos ${CRON_QOS_NAME}/g' ${CURRENT_DIR}/CodeToRun/cleanup.sh
 echo "COMPLETE!"
 
 
