@@ -1,5 +1,7 @@
 #!/bin/bash
 
+
+
 #This is a script to setup the cronjob automatically - JA 17th April
 CRON_HOST="$(hostname)"
 CRON_MIN=5
@@ -9,27 +11,25 @@ CURRENT_DIR="$(pwd)"
 
 TIME_OPTS=("1" "2" "5" "10" "15" "30")
 
-flow_cron_config_dir="~/.config/flowcron"
+flow_cron_config_dir="${HOME}/.config/flowcron"
 
-which my_baskerville 2>&1 /dev/null
+which my_baskerville > /dev/null 2>&1 
 usingBaskerville=$?
 
-#given an array and a value, is the value in the array, returns 0 if found and 1 if not.
+#given a value and an array, is the value in the array, returns 0 if found and 1 if not.
 function isValueInArray {
-  arr=$1
-  value=$2
+  local value=$1
+  shift
+  local arr=("$@")
   for test in "${arr[@]}"; do
-    if [ ! -z "${value}" ] && [ $value == $test ]; then
-      echo "0"
-      return
-    fi
+     if [ ! -z "${value}" ]; then
+	if [ "${value}" == "${test}" ]; then
+            return 0
+	fi
+     fi
   done
-  echo "1"
+  return 1
 }
-
-
-
-
 
 cat << EOF
 Welcome to the FlowCron setup script.
@@ -56,7 +56,8 @@ CRON_SCRIPT_NAME=""
 
 #Get a name for the script from the user.
 while true ; do
-    read -p "What name would you like to give to this instance of Flowcron?" CRON_SCRIPT_NAME
+    echo  -ne "What name would you like to give to this instance of Flowcron?\n> "
+    read  CRON_SCRIPT_NAME
     if [ ! -z $CRON_SCRIPT_NAME ]; then
 	CRON_SCRIPT_NAME=${CRON_SCRIPT_NAME%.sh}".sh"
 	break
@@ -67,14 +68,15 @@ done
 
 #Get an account name from the user.
 while true ; do
-    read -p "What Slurm QoS would you like this to run under? You can list your available QoS using the command 'my_baskerville'." CRON_QOS_NAME
+    echo -ne "What Slurm QoS would you like this to run under? You can list your available QoS using the command 'my_baskerville'.\n?"
+    read CRON_QOS_NAME
     if [ ! -z $CRON_QOS_NAME ]; then
-        if [ $usingBaskerville ]; then
+        if [ $usingBaskerville -eq 0 ]; then
             CHECK=$(my_baskerville | grep "QoS.*:")
             CHECK=${CHECK##*:}
             CHECK_ARRAY=($(echo $CHECK | sed 's/\s*,\s*/ /g'))
-
-            if [ $(isValueInArray CHECK_ARRAY $CRON_QOS_NAME) -eq 0 ]; then
+	    isValueInArray  $CRON_QOS_NAME "${CHECK_ARRAY[@]}"
+            if [ $? -eq 0 ]; then
               break
             fi
         else
@@ -89,12 +91,12 @@ done
 while true ; do
     read -p "What Slurm account would you like this to run under? You can list your accounts using the command 'my_baskerville'." CRON_ACCOUNT_NAME
     if [ ! -z $CRON_ACCOUNT_NAME ]; then
-        if [ $usingBaskerville ]; then
+        if [ $usingBaskerville -eq 0 ]; then
             CHECK=$(my_baskerville | grep "$CRON_QOS_NAME.*:")
             CHECK=${CHECK##*:}
             CHECK_ARRAY=($(echo $CHECK | sed 's/\s*,\s*/ /g'))
-
-            if [ $(isValueInArray CHECK_ARRAY $CRON_ACCOUNT_NAME) -eq 0 ]; then
+            isValueInArray  $CRON_ACCOUNT_NAME "${CHECK_ARRAY[@]}"
+            if [ $? -eq 0 ]; then
               break
             fi
         else
@@ -105,7 +107,7 @@ while true ; do
 done
 
 #Ask how many minutes should this repeat
-echo -e "\nEvery how many minutes should this Cron job run?"
+echo -e "\nEvery how many minutes should this Cron job run? Use the row number to select."
 select time in "${TIME_OPTS[@]}"
 do
     for i in "${TIME_OPTS[@]}"; do
@@ -219,8 +221,8 @@ else
 fi
 
 
-sed -i 's/#SBATCH --account.*/#SBATCH --account ${CRON_ACCOUNT_NAME}/g' ${CURRENT_DIR}/CodeToRun/cleanup.sh
-sed -i 's/#SBATCH --qos.*/#SBATCH --qos ${CRON_QOS_NAME}/g' ${CURRENT_DIR}/CodeToRun/cleanup.sh
+sed -i "s/#SBATCH --account.*/#SBATCH --account ${CRON_ACCOUNT_NAME}/g" ${CURRENT_DIR}/CodeToRun/cleanup.sh
+sed -i "s/#SBATCH --qos.*/#SBATCH --qos ${CRON_QOS_NAME}/g" ${CURRENT_DIR}/CodeToRun/cleanup.sh
 echo "COMPLETE!"
 
 
