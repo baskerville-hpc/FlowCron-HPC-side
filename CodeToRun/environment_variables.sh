@@ -23,12 +23,14 @@ holding_area="../UploadedFiles"
 failed_area="../FailedJobs"
 success_area="../AnalysedFiles"
 cleanup_area="../Bin"
+soft_failed_area="../SoftDelete/FailedJobs"
+soft_success_area="../SoftDelete/AnalysedFiles"
 
 create_dir ${holding_area}
 create_dir ${failed_area}
 create_dir ${success_area}
 create_dir ${cleanup_area}
-
-
+create_dir ${soft_failed_area}
+create_dir ${soft_success_area}
 
 
