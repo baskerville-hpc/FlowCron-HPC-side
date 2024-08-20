@@ -133,6 +133,14 @@ while read UoW_slurm; do
       continue
     fi
 
+    HOME_AND_USER_TEST=$(grep -e '$HOME' -e '$USER' "${path_to_slurm_file}")
+
+    if [[ -z "${HOME_AND_USER_TEST}" ]]; then
+	write_log "FAILED Users slurm script (${path_to_slurm_file}) contains HOME or USER variables which are unlikely to be valid under FlowCron; bypassing cleanup and moving ${UoW_slurm} directory"
+        mv "${UoW_slurm}" ${failed_area}
+        continue
+    fi
+    
     #Start analysis
     write_log "${executable_to_run} ${path_to_slurm_file} ${UoW_slurm}"
 
