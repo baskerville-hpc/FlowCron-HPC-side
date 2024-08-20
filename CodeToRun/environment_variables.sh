@@ -7,7 +7,7 @@ account=""
 time_since_last_run=5
 default_job_time="1:00:00"
 default_job_name=""
-
+days_after_we_should_delete_log_files=7
 logging_directory="../Logs"
 
 if [ ! -d ${logging_directory} ];then 
@@ -32,5 +32,3 @@ create_dir ${success_area}
 create_dir ${cleanup_area}
 create_dir ${soft_failed_area}
 create_dir ${soft_success_area}
-
-
