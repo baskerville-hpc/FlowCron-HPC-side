@@ -7,8 +7,8 @@ function write_log {
 
 #Deletes log and slurm files placed in /Bin after a given number of days
 function delete_old_logs {
-    find ${logging_directory} -maxdepth=1 -mtime +${days_after_we_should_delete_log_files} -exec rm  -- '{}'  \;
-    find ${cleanup_area} -maxdepth=1 -mtime +${days_after_we_should_delete_log_files} -exec rm  -- '{}'  \;
+    find ${logging_directory} -mtime +${days_after_we_should_delete_log_files} -exec rm -- '{}'  \;
+    find ${cleanup_area} -mtime +${days_after_we_should_delete_log_files} -exec rm  -- '{}'  \;
 }
 
 #Soft delete, moves files to soft delete areea 
@@ -21,8 +21,8 @@ function soft_delete  {
 
 function hard_delete  {
     if [[ HARDDELETE_DAYS -gt 0 ]]; then
-        find ${soft_success_area} -maxdepth=1 -mtime +${HARDDELETE_DAYS} -exec rm  -- '{}'  \;
-        find ${soft_failed_area} -maxdepth=1 -mtime +${HARDDELETE_DAYS} -exec rm  -- '{}'  \;
+        find ${soft_success_area} -maxdepth=1 -mtime +${HARDDELETE_DAYS} -exec rm -r -- '{}'  \;
+        find ${soft_failed_area} -maxdepth=1 -mtime +${HARDDELETE_DAYS} -exec rm -r -- '{}'  \;
     fi
 }
 
