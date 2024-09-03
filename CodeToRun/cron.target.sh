@@ -140,7 +140,6 @@ while read UoW_slurm; do
       mv "${UoW_slurm}" ${failed_area}
       continue
     fi
-
     
     #Start analysis
     write_log "${executable_to_run} ${path_to_slurm_file} ${UoW_slurm}"
