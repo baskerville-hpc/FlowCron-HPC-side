@@ -70,3 +70,109 @@ while read UoW; do
           continue
       fi
 
+      rm "${work_dir}/sentinels/${copy_sentinel_files}"
+      if [[ $? -eq 0 ]]; then
+          write_log "Successfully removed sentinel."
+      else
+          write_log "FATAL ERROR - Unable to delete copy sentinels using rm ${work_dir}/sentinels/${copy_sentinel_files}"
+          continue
+      fi
+
+      #Increment count of files ran
+      count=$((count+1))
+
+      #this means we can never copy to the same directory in slurm/ due to changing the time.
+      sleep 1
+    fi
+done <<< $(findPossibleUnitsOfWorkSentinelCreatedByGlobus "${holding_area}")
+write_log "Complete; moved ${count} Units of work to slurm/."
+
+#Reusing findPossibleUnitsOfWork but targeting the slurm/ directory.
+count=0
+
+# LOOP 2 - Start the HPC job and setup cleanup.
+while read UoW_slurm; do
+  if [[ -n "${UoW_slurm}" ]]; then #test for an empty value. This is given if findPossible... looks at an empty dir.
+    #Customise slurm file
+    submission_script=''
+
+    find_first_script "${UoW_slurm}"/scripts
+    path_to_slurm_file=$submission_script
+    if [ $? -ne 0 ]; then
+      write_log "FAILED when trying to find a valid slurm script; bypassing cleanup and moving ${UoW_slurm} directory"
+      mv "${UoW_slurm}" ${failed_area}
+      continue
+    fi
+
+    write_log "INFO: rewriting output and error slurm directives in ${path_to_slurm_file}"
+    correct_error_and_output "${path_to_slurm_file}" "${UoW_slurm}"
+
+    if [ $? -ne 0 ]; then
+      write_log "FAILED when rewriting slurm script; bypassing cleanup and moving ${UoW_slurm} directory"
+      mv "${UoW_slurm}" ${failed_area}
+      continue
+    fi
+
+    write_log "Converting the slurm script ${path_to_slurm_file} to UNIX \n format, just in case."
+    dos2unix ${path_to_slurm_file}
+    find ${UoW_slurm}/scripts -type f -iname '*.sh' -exec dos2unix {} \;
+
+    if [ $? -ne 0 ]; then
+      write_log "dos2unix file conversion failed for file ${path_to_slurm_file}"
+      continue
+    fi
+
+    HOME_AND_USER_TEST=$(grep -e '$HOME' -e '$USER' -e '${HOME}' -e '${USER}' "${path_to_slurm_file}")
+
+    if [[ ! -z "${HOME_AND_USER_TEST}" ]]; then
+	write_log "FAILED Users slurm script (${path_to_slurm_file}) contains HOME or USER variables which are unlikely to be valid under FlowCron; bypassing cleanup and moving ${UoW_slurm} directory"
+        mv "${UoW_slurm}" ${failed_area}
+        continue
+    fi
+
+    
+    #Create a sentinel to prevent it being analysed multiple times
+    write_log "Creating SlurmRunning sentinel ${UoW_slurm}/sentinels/SlurmRunning"
+    touch "${UoW_slurm}/sentinels/SlurmRunning"
+
+    if [ $? -ne 0 ]; then
+      write_log "FAILED to create a sentinel to prevent work being analysed multipled times"
+      mv "${UoW_slurm}" ${failed_area}
+      continue
+    fi
+
+    
+    #Start analysis
+    write_log "${executable_to_run} ${path_to_slurm_file} ${UoW_slurm}"
+
+    job_id=$(${executable_to_run} "${path_to_slurm_file}"  "${UoW_slurm}")
+
+    if [ $? -ne 0 ]; then
+      write_log "FAILED when running slurm script; bypassing cleanup and moving ${UoW_slurm} directory"
+      write_log "mv ${UoW_slurm} ${failed_area}"
+      mv "${UoW_slurm}" ${failed_area}
+      continue
+    fi
+    
+    #Copy to a destination based on existence of a slurm stats file and it containing "Exitcode 0:0"
+    write_log "cron.target sent ${executable_to_run} ${path_to_slurm_file} ${UoW_slurm} with JobID ${job_id} to the queue"
+    cleanup_job_id=$(sbatch --dependency afterany:${job_id} --parsable ${cleanup_script} ${UoW_slurm} ${job_id})
+    
+    if [ $? -ne 0 ]; then
+      write_log "FAILED when running slurm clean up script, will need to manually clean up. Check that you've set QoS and Account in cleanup.sh"
+      continue
+    fi
+    write_log "clean_up created with ${cleanup_job_id} to the queue"
+
+    #Increment count of files ran
+    count=$((count+1))
+  fi
+done <<< $(findPossibleUnitsOfWork "slurm")
+
+write_log "Complete; analysed ${count} files."
+
+#deleting old log files
+write_log "Deleting old files."
+delete_old_logs
+
+write_log "Complete; deleted old log files"
