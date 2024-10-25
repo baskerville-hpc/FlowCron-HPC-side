@@ -23,9 +23,9 @@ function isValueInArray {
   local arr=("$@")
   for test in "${arr[@]}"; do
      if [ ! -z "${value}" ]; then
-	if [ "${value}" == "${test}" ]; then
+        if [ "${value}" == "${test}" ]; then
             return 0
-	fi
+	    fi
      fi
   done
   return 1
@@ -75,7 +75,7 @@ while true ; do
             CHECK=$(my_baskerville | grep "QoS.*:")
             CHECK=${CHECK##*:}
             CHECK_ARRAY=($(echo $CHECK | sed 's/\s*,\s*/ /g'))
-	    isValueInArray  $CRON_QOS_NAME "${CHECK_ARRAY[@]}"
+	        isValueInArray  $CRON_QOS_NAME "${CHECK_ARRAY[@]}"
             if [ $? -eq 0 ]; then
               break
             fi
