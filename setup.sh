@@ -68,7 +68,7 @@ done
 
 #Get an account name from the user.
 while true ; do
-    echo -ne "What Slurm QoS would you like this to run under? You can list your available QoS using the command 'my_baskerville'.\n?"
+    echo -ne "What Slurm QoS would you like this to run under? You can list your available QoS using the command 'my_baskerville'. If you're not using Baskerville, just add the appropriate QoS value given by your system admins.\n?"
     read CRON_QOS_NAME
     if [ ! -z $CRON_QOS_NAME ]; then
         if [ $usingBaskerville -eq 0 ]; then
@@ -89,7 +89,8 @@ done
 
 #Get an account name from the user.
 while true ; do
-    read -p "What Slurm account would you like this to run under? You can list your accounts using the command 'my_baskerville'." CRON_ACCOUNT_NAME
+    echo "What Slurm account would you like this to run under? You can list your accounts using the command 'my_baskerville'.  If you're not using Baskerville, just add the appropriate QoS value given by your system admins.\n?"
+    read CRON_ACCOUNT_NAME
     if [ ! -z $CRON_ACCOUNT_NAME ]; then
         if [ $usingBaskerville -eq 0 ]; then
             CHECK=$(my_baskerville | grep "$CRON_QOS_NAME.*:")
