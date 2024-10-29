@@ -1,0 +1,38 @@
+{
+    "description": "<p>This is the code which needs to be installed on the HPC side for the Globus file transfer and code execute to run</p>", 
+    "license": "GPL-3.0", 
+    "title": "Globus-HPC-side", 
+    "creators": [
+        {
+            "orcid": "0000-0001-5573-3189", 
+            "affiliation": "University of Birmingham", 
+            "name": "James Allsopp"
+        },
+        {
+            "orcid": "0000-0002-8015-3191", 
+            "affiliation": "Rosalind Franklin Institute", 
+            "name": "Dimitrios Bellos"
+        }, 
+        {
+            "orcid": "0000-0001-8697-4903", 
+            "affiliation": "Rosalind Franklin Institute", 
+            "name": "Elaine Ho"
+        }, 
+
+        {
+            "orcid": "0009-0007-8940-5627", 
+            "affiliation": "University of Birmingham", 
+            "name": "Gavin Yearwood"
+        },
+        {
+            "orcid": "0000-0001-5153-1424", 
+            "affiliation": "Rosalind Franklin Institute", 
+            "name": "Tibor Auer"
+        },
+        {
+            "orcid": "0000-0001-7453-5698", 
+            "affiliation": "University of Birmingham", 
+            "name": "Andrew Morris"
+        }
+    ]
+}
