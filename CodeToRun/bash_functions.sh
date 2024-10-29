@@ -1,7 +1,5 @@
 #General FlowCron functions James Allsopp 2024
 
-days_after_we_should_delete_log_files=7
-
 #Writes the argument to a log file
 function write_log {
    echo -e "$(date '+%Y-%m-%d %H:%M:%S')\t ${1}" >> $logging_file
@@ -9,14 +7,30 @@ function write_log {
 
 #Deletes log and slurm files placed in /Bin after a given number of days
 function delete_old_logs {
-    find ${logging_directory} -mtime +${days_after_we_should_delete_log_files} -exec rm  -- '{}'  \;
+    find ${logging_directory} -mtime +${days_after_we_should_delete_log_files} -exec rm -- '{}'  \;
     find ${cleanup_area} -mtime +${days_after_we_should_delete_log_files} -exec rm  -- '{}'  \;
 }
+
+#Soft delete, moves files to soft delete areea 
+function soft_delete  {
+    if [[ SOFTDELETE_DAYS -gt 0 ]]; then
+        find ${success_area} -maxdepth=1 -mtime +${SOFTDELETE_DAYS} -exec mv '{}' "${soft_success_area}"  \;
+        find ${failed_area} -maxdepth=1 -mtime +${SOFTDELETE_DAYS} -exec mv '{}'  "${soft_failed_area}"\;
+    fi 
+}
+
+function hard_delete  {
+    if [[ HARDDELETE_DAYS -gt 0 ]]; then
+        find ${soft_success_area} -maxdepth=1 -mtime +${HARDDELETE_DAYS} -exec rm -r -- '{}'  \;
+        find ${soft_failed_area} -maxdepth=1 -mtime +${HARDDELETE_DAYS} -exec rm -r -- '{}'  \;
+    fi
+}
+
 
 #Function used to create directories, checking for existence before and after.
 function create_dir {
    if [ ! -d "${1}" ];then 
-       mkdir "${1}"
+       mkdir -p "${1}"
        if [ $? -ne 0 ]; then
 	  write_log "${1} does not exist and we cannot create it"
        fi

@@ -172,6 +172,14 @@ write_log "Complete; analysed ${count} files."
 
 #deleting old log files
 write_log "Deleting old files."
-delete_old_logs
+
+write_log "Deleting old logs."
+delete_old_logs 
+
+write_log "Soft delete."
+soft_delete 
+
+write_log "Hard delete"
+hard_delete 
 
 write_log "Complete; deleted old log files"

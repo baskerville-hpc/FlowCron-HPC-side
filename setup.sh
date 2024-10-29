@@ -46,6 +46,7 @@ while true ; do
     fi
 done
 
+
 #Ask how many minutes should this repeat
 echo -e "\nEvery how many minutes should this Cron job run?"
 select time in "${TIME_OPTS[@]}"
@@ -79,6 +80,31 @@ do
 	    ;;
      esac
 done
+
+
+#How many days before a job is soft-deleted
+while true ; do
+    echo -ne "How many days should pass before we soft-delete completed or failed jobs; 0 indicates no soft-deletion?\n>"
+    read  SOFTDELETE_DAYS
+    if [[ $SOFTDELETE_DAYS =~ ^[\-0-9]+$ ]] && (( SOFTDELETE_DAYS > -1)); then
+	break
+    else
+	echo "Please enter an integer number of days for soft deletion."	    
+    fi
+done
+
+#How many days before a job is finally deleted
+while true ; do
+    echo -ne "How many days should pass (after copying to soft delete) before we finally delete completed or failed jobs; 0 indicates no final deletion?\n>"
+    read  HARDDELETE_DAYS
+    if [[ $HARDDELETE_DAYS =~ ^[\-0-9]+$ ]] && (( HARDDELETE_DAYS > -1)); then
+	break
+    else
+	echo "Please enter an integer number of days for final deletion."	    
+    fi
+done
+
+
 set -o noglob # Need this to prevent the asterisks in the cron job sending everything haywire.
 CRON_COMMAND="*/${CRON_MIN} * * * * ./${CRON_SCRIPT_NAME}"
 
@@ -92,13 +118,19 @@ ${CRON_COMMAND}
 EOF
 )
 
+NICE_ADDTIMESTAMP=$([[ -v ADD_TIMESTAMP ]] && echo "Yes" || echo "No")
+[[ -v ADD_TIMESTAMP ]]
+echo $?
+echo $NICE_ADDTIMESTAMP
 
 warning=$(cat <<EOF
 We will set up with these options;
 Name of script:                      $CRON_SCRIPT_NAME   ${COLOUR_RED}${OVERWRITE}${COLOUR_RESET}
 Repeat Time:                         $CRON_MIN minutes
 Host for cron file:                  $CRON_HOST
-Add Timestamp to uploaded Directory: $ADD_TIMESTAMP
+Add Timestamp to uploaded Directory: $NICE_ADDTIMESTAMP
+Time before Soft deletion (days):    $SOFTDELETE_DAYS  
+Time before Hard deletion (days):    $HARDDELETE_DAYS  
 
 Your existing crontab will be changed from:
 ${original_cron}
@@ -147,16 +179,48 @@ EOF
 chmod +x ~/${CRON_SCRIPT_NAME}
 
 path_to_environment_variables="./CodeToRun/environment_variables.sh"
+
 #Add Timestamp option to environment variables
 if [[ -v ADD_TIMESTAMP ]]; then
     grep_test=$(grep "ADD_TIMESTAMP" "${path_to_environment_variables}")
     if [ -z "${grep_test}" ]; then
-        echo -e "#Added automatically by setup.sh\nADD_TIMESTAMP=1" >> "${path_to_environment_variables}"
+        echo -e "#ADD_TIMESTEP Added automatically by setup.sh\nADD_TIMESTAMP=1" >> "${path_to_environment_variables}"
+    else
+	#Wipe old values and replace.
+	sed -i'' -E 's/^ADD_TIMESTAMP.*$//g' "${path_to_environment_variables}"
+        sed -i'' -E 's/^\#ADD_TIMESTAMP Added automatically by setup.sh.*$//g' "${path_to_environment_variables}"
+	echo -e "#ADD_TIMESTEP Added automatically by setup.sh\nADD_TIMESTAMP=1" >> "${path_to_environment_variables}"
     fi
-else
+else	    
     sed -i'' -E 's/^ADD_TIMESTAMP.*$//g' "${path_to_environment_variables}"
-    sed -i'' -E 's/^\#Added automatically by setup.sh.*$//g' "${path_to_environment_variables}"
+    sed -i'' -E 's/^\#ADD_TIMESTAMP Added automatically by setup.sh.*$//g' "${path_to_environment_variables}"
 fi
+
+#Both SOFT AND HARD DELETE SHOULD ALWAYS BE DEFINED
+#Add SOFTDELETE to environment variables files
+grep_test=$(grep "SOFTDELETE_DAYS" "${path_to_environment_variables}")
+if [ -z "${grep_test}" ]; then
+    #Not found this value in the Environment variables file
+    echo -e "#SOFTDELETE_DAYS Added automatically by setup.sh\nSOFTDELETE_DAYS=$SOFTDELETE_DAYS" >> "${path_to_environment_variables}"
+else
+    #wipe the old values and reapply if setup.sh is rerun.
+    sed -i'' -E 's/^SOFTDELETE_DAYS=.*$//g' "${path_to_environment_variables}"
+    sed -i'' -E 's/^\#SOFTDELETE_DAYS Added automatically by setup.sh.*$//g' "${path_to_environment_variables}"
+    echo -e "#SOFTDELETE_DAYS Added automatically by setup.sh\nSOFTDELETE_DAYS=$SOFTDELETE_DAYS" >> "${path_to_environment_variables}"
+fi
+
+#Add HARDDELETE to environment variables files
+grep_test=$(grep "HARDDELETE_DAYS" "${path_to_environment_variables}")
+if [ -z "${grep_test}" ]; then
+    #Not found this value in the Environment variables file
+    echo -e "#HARDDELETE_DAYS Added automatically by setup.sh\nHARDDELETE_DAYS=$HARDDELETE_DAYS" >> "${path_to_environment_variables}"
+else
+    #wipe the old values and reapply if setup.sh is rerun.
+    sed -i'' -E 's/^HARDDELETE_DAYS=.*$//g' "${path_to_environment_variables}"
+    sed -i'' -E 's/^\#HARDDELETE_DAYS Added automatically by setup.sh.*$//g' "${path_to_environment_variables}"
+    echo -e "#HARDDELETE_DAYS Added automatically by setup.sh\nHARDDELETE_DAYS=$HARDDELETE_DAYS" >> "${path_to_environment_variables}"
+fi
+
 
 echo "COMPLETE!"
 
