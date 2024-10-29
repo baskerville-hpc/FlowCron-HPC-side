@@ -1,5 +1,6 @@
 #!/bin/bash
 
+#This is a script to setup the cronjob automatically - JA 17th April
 CRON_HOST="$(hostname)"
 CRON_MIN=5
 COLOUR_RED='\e[0;31m'
@@ -8,9 +9,25 @@ CURRENT_DIR="$(pwd)"
 
 TIME_OPTS=("1" "2" "5" "10" "15" "30")
 
-flow_cron_config_dir="~/.config/flowcron"
-#This is a script to setup the cronjob automatically - JA 17th April
+flow_cron_config_dir="${HOME}/.config/flowcron"
 
+which my_baskerville > /dev/null 2>&1 
+usingBaskerville=$?
+
+#given a value and an array, is the value in the array, returns 0 if found and 1 if not.
+function isValueInArray {
+  local value=$1
+  shift
+  local arr=("$@")
+  for test in "${arr[@]}"; do
+     if [ ! -z "${value}" ]; then
+        if [ "${value}" == "${test}" ]; then
+            return 0
+	    fi
+     fi
+  done
+  return 1
+}
 
 cat << EOF
 Welcome to the FlowCron setup script.
@@ -27,8 +44,6 @@ When you're asked for a name, please make this unique to your instances of FlowC
  
 EOF
 
-
-
 if [ ! -d ${flow_cron_config_dir} ]; then
     mkdir -p "${flow_cron_config_dir}"
 fi
@@ -37,7 +52,8 @@ CRON_SCRIPT_NAME=""
 
 #Get a name for the script from the user.
 while true ; do
-    read -p "What name would you like to give to this instance of Flowcron?" CRON_SCRIPT_NAME
+    echo  -ne "What name would you like to give to this instance of Flowcron?\n> "
+    read  CRON_SCRIPT_NAME
     if [ ! -z $CRON_SCRIPT_NAME ]; then
 	CRON_SCRIPT_NAME=${CRON_SCRIPT_NAME%.sh}".sh"
 	break
@@ -46,9 +62,49 @@ while true ; do
     fi
 done
 
+#Get an account name from the user. This is so we can drop these into the cleanup file. Otherwise, they try toget this to work
+while true ; do
+    echo -ne "What Slurm QoS would you like this to run under? You can list your available QoS using the command 'my_baskerville'. If you're not using Baskerville, just add the appropriate QoS value given by your system admins.\n?"
+    read CRON_QOS_NAME
+    if [ ! -z $CRON_QOS_NAME ]; then
+        if [ $usingBaskerville -eq 0 ]; then
+            CHECK=$(my_baskerville | grep "QoS.*:")
+            CHECK=${CHECK##*:}
+            CHECK_ARRAY=($(echo $CHECK | sed 's/\s*,\s*/ /g'))
+  	        isValueInArray  $CRON_QOS_NAME "${CHECK_ARRAY[@]}"
+            if [ $? -eq 0 ]; then
+              break
+            fi
+        else
+            break
+        fi
+    fi
+	echo "Please enter a QoS for the script."	    
+done
+
+
+#Get an account name from the user.
+while true ; do
+    echo "What Slurm account would you like this to run under? You can list your accounts using the command 'my_baskerville'.  If you're not using Baskerville, just add the appropriate QoS value given by your system admins.\n?"
+    read CRON_ACCOUNT_NAME
+    if [ ! -z $CRON_ACCOUNT_NAME ]; then
+        if [ $usingBaskerville -eq 0 ]; then
+            CHECK=$(my_baskerville | grep "$CRON_QOS_NAME.*:")
+            CHECK=${CHECK##*:}
+            CHECK_ARRAY=($(echo $CHECK | sed 's/\s*,\s*/ /g'))
+            isValueInArray  $CRON_ACCOUNT_NAME "${CHECK_ARRAY[@]}"
+            if [ $? -eq 0 ]; then
+              break
+            fi
+        else
+          break
+        fi
+    fi
+	echo "Please enter an account name for the script."	    
+done
 
 #Ask how many minutes should this repeat
-echo -e "\nEvery how many minutes should this Cron job run?"
+echo -e "\nEvery how many minutes should this Cron job run? Use the row number to select."
 select time in "${TIME_OPTS[@]}"
 do
     for i in "${TIME_OPTS[@]}"; do
@@ -81,7 +137,6 @@ do
      esac
 done
 
-
 #How many days before a job is soft-deleted
 while true ; do
     echo -ne "How many days should pass before we soft-delete completed or failed jobs; 0 indicates no soft-deletion?\n>"
@@ -104,7 +159,6 @@ while true ; do
     fi
 done
 
-
 set -o noglob # Need this to prevent the asterisks in the cron job sending everything haywire.
 CRON_COMMAND="*/${CRON_MIN} * * * * ./${CRON_SCRIPT_NAME}"
 
@@ -126,6 +180,8 @@ echo $NICE_ADDTIMESTAMP
 warning=$(cat <<EOF
 We will set up with these options;
 Name of script:                      $CRON_SCRIPT_NAME   ${COLOUR_RED}${OVERWRITE}${COLOUR_RESET}
+QoS:                                 $CRON_QOS_NAME
+Account:                             $CRON_ACCOUNT_NAME
 Repeat Time:                         $CRON_MIN minutes
 Host for cron file:                  $CRON_HOST
 Add Timestamp to uploaded Directory: $NICE_ADDTIMESTAMP
@@ -165,7 +221,6 @@ echo -e "${warning}" > "${flow_cron_config_dir}/$(date +%FT%T)_${CRON_SCRIPT_NAM
 echo "${new_cron}" | crontab -
 set +o noglob
 
-
 #create file in home directory to execute, can't directly do this due to permissions in CRON.
 
 cat <<EOF > ~/${CRON_SCRIPT_NAME}
@@ -196,6 +251,10 @@ else
     sed -i'' -E 's/^\#ADD_TIMESTAMP Added automatically by setup.sh.*$//g' "${path_to_environment_variables}"
 fi
 
+#Substitute the users chosen QoS and Account into the cleanup.sh
+sed -i "s/#SBATCH --account.*/#SBATCH --account ${CRON_ACCOUNT_NAME}/g" ${CURRENT_DIR}/CodeToRun/cleanup.sh
+sed -i "s/#SBATCH --qos.*/#SBATCH --qos ${CRON_QOS_NAME}/g" ${CURRENT_DIR}/CodeToRun/cleanup.sh
+
 #Both SOFT AND HARD DELETE SHOULD ALWAYS BE DEFINED
 #Add SOFTDELETE to environment variables files
 grep_test=$(grep "SOFTDELETE_DAYS" "${path_to_environment_variables}")
@@ -221,8 +280,4 @@ else
     echo -e "#HARDDELETE_DAYS Added automatically by setup.sh\nHARDDELETE_DAYS=$HARDDELETE_DAYS" >> "${path_to_environment_variables}"
 fi
 
-
 echo "COMPLETE!"
-
-
-
