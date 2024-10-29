@@ -70,7 +70,6 @@ while read UoW; do
           continue
       fi
 
-      write_log "mv $UoW $work_dir complete. Removing sentinel ${work_dir}/sentinels/${copy_sentinel_files}."
       rm "${work_dir}/sentinels/${copy_sentinel_files}"
       if [[ $? -eq 0 ]]; then
           write_log "Successfully removed sentinel."
@@ -122,6 +121,15 @@ while read UoW_slurm; do
       write_log "dos2unix file conversion failed for file ${path_to_slurm_file}"
       continue
     fi
+
+    HOME_AND_USER_TEST=$(grep -e '$HOME' -e '$USER' -e '${HOME}' -e '${USER}' "${path_to_slurm_file}")
+
+    if [[ ! -z "${HOME_AND_USER_TEST}" ]]; then
+	write_log "FAILED Users slurm script (${path_to_slurm_file}) contains HOME or USER variables which are unlikely to be valid under FlowCron; bypassing cleanup and moving ${UoW_slurm} directory"
+        mv "${UoW_slurm}" ${failed_area}
+        continue
+    fi
+
     
     #Create a sentinel to prevent it being analysed multiple times
     write_log "Creating SlurmRunning sentinel ${UoW_slurm}/sentinels/SlurmRunning"
@@ -132,7 +140,7 @@ while read UoW_slurm; do
       mv "${UoW_slurm}" ${failed_area}
       continue
     fi
-
+    
     #Start analysis
     write_log "${executable_to_run} ${path_to_slurm_file} ${UoW_slurm}"
 
@@ -140,6 +148,7 @@ while read UoW_slurm; do
 
     if [ $? -ne 0 ]; then
       write_log "FAILED when running slurm script; bypassing cleanup and moving ${UoW_slurm} directory"
+      write_log "mv ${UoW_slurm} ${failed_area}"
       mv "${UoW_slurm}" ${failed_area}
       continue
     fi
@@ -163,6 +172,14 @@ write_log "Complete; analysed ${count} files."
 
 #deleting old log files
 write_log "Deleting old files."
-delete_old_logs
+
+write_log "Deleting old logs."
+delete_old_logs 
+
+write_log "Soft delete."
+soft_delete 
+
+write_log "Hard delete"
+hard_delete 
 
 write_log "Complete; deleted old log files"
