@@ -138,23 +138,6 @@ do
      esac
 done
 
-echo "Would you like to use SCRON instead of CRON? If SCRON is avaiable, we would recommend it."
-select yn in  "${yes_no[@]}"
-do
-    case $yn in
-	"Yes")
-	    USE_SCRON="True"
-	    break
-	    ;;
-	"No")
-	    break
-	    ;;
-	*)
-	    echo "Unknown option"
-	    ;;
-     esac
-done
-
 #How many days before a job is soft-deleted
 while true ; do
     echo -ne "How many days should pass before we soft-delete completed or failed jobs; 0 indicates no soft-deletion?\n>"
@@ -180,99 +163,17 @@ done
 set -o noglob # Need this to prevent the asterisks in the cron job sending everything haywire.
 CRON_COMMAND="*/${CRON_MIN} * * * * ./${CRON_SCRIPT_NAME}"
 
-$([[ -v USE_SCRON ]] && echo "Yes" || echo "No")
+original_cron=$(crontab -l)
+new_cron=$(echo "${original_cron}" | sed 's/'^.*${CRON_SCRIPT_NAME}.*$'//g')
+new_cron=$(cat << EOF
+${new_cron}
 
-
-warning=$(cat <<EOF
-We will set up with these options;
-Name of script:                      $CRON_SCRIPT_NAME   ${COLOUR_RED}${OVERWRITE}${COLOUR_RESET}
-QoS:                                 $CRON_QOS_NAME
-Account:                             $CRON_ACCOUNT_NAME
-Repeat Time:                         $CRON_MIN minutes
-Host for cron file:                  $CRON_HOST
-Add Timestamp to uploaded Directory: $NICE_ADDTIMESTAMP
-Time before Soft deletion (days):    $SOFTDELETE_DAYS  
-Time before Hard deletion (days):    $HARDDELETE_DAYS  
-Use SCRON rather than CRON:          $NICE_SCRON
-Y
+# Added by Flowcron on $(date) for script ${CRON_SCRIPT_NAME}; do not delete without deleting line below
+${CRON_COMMAND}
 EOF
 )
-echo "$warning"
-
-echo "Confirm to continue?"
-select yn in  "${yes_no[@]}"
-do
-    case $yn in
-	"Yes")
-	    echo -e "\nContinuing...."
-	    break
-	    ;;
-	"No")
-            echo -e "\nExiting script on user request"
-	    exit
-	    ;;
-	*)
-	    echo "Unknown option"
-	    ;;
-     esac
-done
-
-echo -e "${warning}" > "${flow_cron_config_dir}/$(date +%FT%T)_${CRON_SCRIPT_NAME}"
-
-echo "${new_cron}" | crontab -
-set +o noglob
-
-#create file in home directory to execute, can't directly do this due to permissions in CRON.
-
-cat <<EOF > ~/${CRON_SCRIPT_NAME}
-#!/bin/sh
-#Created by FlowCron setup on $(date); git version $(git rev-parse --short HEAD)
-
-"${CURRENT_DIR}/CodeToRun/cron.target.sh" "${CURRENT_DIR}/CodeToRun"
-
-EOF
-
-chmod +x ~/${CRON_SCRIPT_NAME}
-
-path_to_environment_variables="./CodeToRun/environment_variables.sh"
-
-if [[ -v USE_SCRON ]]; then
-    CRON_EXECUTABLE="scrontab -l"
-else
-    CRON_EXECUTABLE="crontab -l"
-fi
-
-#This attempts to not clobber existing scron, whilst being functional idempto....
-original_cron=$(CRON_EXECUTABLE)
-new_cron=$(echo "${original_cron}" | sed 's/'^.*${CRON_SCRIPT_NAME}.*$'//g')
-
-if [[ -v USE_SCRON ]]; then
-    new_cron=$(cat << EOF
-${new_cron}
-
-#DIR=${HOME}
-#SCRON --qos=${CRON_QOS_NAME}
-#SCRON --output=/dev/null
-#SCRON --error=/dev/null
-#SCRON --account=${CRON_ACCOUNT_NAME}
-#SCRON -t 00:01:00
-
-# Added by Flowcron on $(date) for script ${CRON_SCRIPT_NAME}; do not delete without deleting line below
-${CRON_COMMAND}
-EOF
-    )
-else
-    new_cron=$(cat << EOF
-${new_cron}
-
-# Added by Flowcron on $(date) for script ${CRON_SCRIPT_NAME}; do not delete without deleting line below
-${CRON_COMMAND}
-EOF
-    )
-fi
 
 NICE_ADDTIMESTAMP=$([[ -v ADD_TIMESTAMP ]] && echo "Yes" || echo "No")
-NICE_SCRON=$([[ -v USE_SCRON ]] && echo "Yes" || echo "No")
 
 
 warning=$(cat <<EOF
@@ -285,8 +186,13 @@ Host for cron file:                  $CRON_HOST
 Add Timestamp to uploaded Directory: $NICE_ADDTIMESTAMP
 Time before Soft deletion (days):    $SOFTDELETE_DAYS  
 Time before Hard deletion (days):    $HARDDELETE_DAYS  
-Use SCRON rather than CRON:          $NICE_SCRON
-Y
+
+Your existing crontab will be changed from:
+${original_cron}
+
+to: 
+
+${new_cron}
 EOF
 )
 echo "$warning"
