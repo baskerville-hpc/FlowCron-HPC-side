@@ -237,13 +237,13 @@ chmod +x ~/${CRON_SCRIPT_NAME}
 path_to_environment_variables="./CodeToRun/environment_variables.sh"
 
 if [[ -v USE_SCRON ]]; then
-    CRON_EXECUTABLE="scrontab -l"
+    CRON_EXECUTABLE="scrontab"
 else
-    CRON_EXECUTABLE="crontab -l"
+    CRON_EXECUTABLE="crontab"
 fi
 
 #This attempts to not clobber existing scron, whilst being functional idempto....
-original_cron=$(CRON_EXECUTABLE)
+original_cron=$(${CRON_EXECUTABLE} -l)
 new_cron=$(echo "${original_cron}" | sed 's/'^.*${CRON_SCRIPT_NAME}.*$'//g')
 
 if [[ -v USE_SCRON ]]; then
@@ -311,7 +311,7 @@ done
 
 echo -e "${warning}" > "${flow_cron_config_dir}/$(date +%FT%T)_${CRON_SCRIPT_NAME}"
 
-echo "${new_cron}" | crontab -
+echo "${new_cron}" | ${CRON_EXECUTABLE} -
 set +o noglob
 
 #create file in home directory to execute, can't directly do this due to permissions in CRON.
