@@ -1,4 +1,3 @@
-
 #!/bin/bash
 
 #This is a script to setup the cronjob automatically - JA 17th April
@@ -174,7 +173,9 @@ EOF
 )
 
 NICE_ADDTIMESTAMP=$([[ -v ADD_TIMESTAMP ]] && echo "Yes" || echo "No")
-
+[[ -v ADD_TIMESTAMP ]]
+echo $?
+echo $NICE_ADDTIMESTAMP
 
 warning=$(cat <<EOF
 We will set up with these options;
