@@ -3,7 +3,7 @@
 This code is designed to receive a set of files, in a given arrangement, and analyse them on a HPC system, before making them available for download. It is designed to work with either Globus Flows or rsync.
 
 
-[![DOI](https://zenodo.org/badge/786880524.svg)](https://doi.org/10.5281/zenodo.14034959)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.14246495.svg)](https://doi.org/10.5281/zenodo.14246495)
 
 It is designed to be used with this repository [FlowCron-Globus_Flow-side](https://github.com/rosalindfranklininstitute/FlowCron-Globus_Flow-side) ;
 
