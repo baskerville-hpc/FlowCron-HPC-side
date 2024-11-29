@@ -16,7 +16,7 @@
         {
             "orcid": "0000-0001-8697-4903", 
             "affiliation": "Rosalind Franklin Institute", 
-            "name": "Elaine Ho"
+            "name": "Elaine M. L. Ho"
         }, 
 
         {
@@ -32,7 +32,12 @@
         {
             "orcid": "0000-0001-7453-5698", 
             "affiliation": "University of Birmingham", 
-            "name": "Andrew Morris"
+            "name": "Andrew J. Morris"
+        },
+        {
+            "orcid": "0000-0002-8438-1415", 
+            "affiliation": "Rosalind Franklin Institute", 
+            "name": "Mark Basham"
         }
     ]
 }
