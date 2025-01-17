@@ -44,6 +44,12 @@ Edit **example_unit_of_work/scripts/edit_this_slurm_script.sh** to contain the c
 
 Finally, a directory **Logs** contains a daily log of everything that's happened, containing the job_id of the slurm job.  A **Bin** directory stores the output from the cleanup script. You could use Globus to periodically move this to a local drive or build a Grafana solution based on this.
 
+## Utilisation of Reservation Codes
+
+During the processing of a Unit of Work a cleanup slurm job will be created using the slurm script located in `CodeToRun/cleanup.sh` 
+
+If a reservation code is to be utilised, after the installation of FlowCron-HPC-side, this slurm script will need to be edited so that the reservation code is added as a sbatch argument.
+
 # Possible reasons this might not work
 
 + Not having permissions to use cron
