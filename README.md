@@ -46,7 +46,7 @@ Finally, a directory **Logs** contains a daily log of everything that's happened
 
 ## Utilisation of Reservation Codes
 
-During the processing of Unit of Work a cleanup slurm job will be created using the slurm script located in `CodeToRun/cleanup.sh` 
+During the processing of a Unit of Work a cleanup slurm job will be created using the slurm script located in `CodeToRun/cleanup.sh` 
 
 If reservation codes are to be utilised after the installation of FlowCron-HPC-side this slurm script need to be edited so that the cleanup script use the reservation code as a sbatch argument.
 
